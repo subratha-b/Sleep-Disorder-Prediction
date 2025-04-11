@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleep Disorder Prediction Result</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='sleep1.css')}}">
+</head>
+<style>
+.container{
+
+background-blend-mode: hard-light;
+}
+</style>
+<body >
+    <div class="container">
+        <h1 class="header">Sleep Disorder Prediction Result</h1>
+        <div class="resultContainer">
+            <p><strong>Prediction Result:</strong> {{ result }}</p>
+            <p><strong>Accuracy:</strong> {{ accuracy }}</p>
+            <p><strong>Precision:</strong> {{ precision }}</p>
+            <p><strong>Recall:</strong> {{ recall }}</p>
+        </div>
+    </div>
+</body>
+</html>
