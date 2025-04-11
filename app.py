@@ -10,103 +10,126 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
-data = pd.read_csv("C:\\Users\\bsupr\\Downloads\\Sleep disorder\\Sleep disorder\\Sleep_health_and_lifestyle_dataset.csv")
 
-# Preprocessing
-# Handle missing values if any
+# Load and preprocess dataset
+data_path = "C:\\Users\\bsupr\\Downloads\\Sleep disorder\\Sleep disorder\\Sleep_health_and_lifestyle_dataset.csv"
+data = pd.read_csv(data_path)
 data.dropna(inplace=True)
 
-# Remove 'Person ID', 'Occupation', 'Gender', and 'BMI Category' columns
-data.drop(columns=['Person ID', 'Occupation', 'Gender', 'BMI Category'], inplace=True)
+# Drop unnecessary columns
+drop_columns = ['Person ID', 'Occupation', 'Gender', 'BMI Category']
+data.drop(columns=drop_columns, inplace=True)
 
-# Separate features and target variables
+# Features and Targets
 X = data.drop(columns=['Sleep Disorder', 'Insomnia'])
 y_disorder = data['Sleep Disorder']
 y_insomnia = data['Insomnia']
 
-# Standardize features
+# Feature scaling
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Train-test split with stratified sampling for both disorders
-X_train_disorder, X_test_disorder, y_train_disorder, y_test_disorder = train_test_split(X_scaled, y_disorder, test_size=0.3, random_state=42, stratify=y_disorder)
-X_train_insomnia, X_test_insomnia, y_train_insomnia, y_test_insomnia = train_test_split(X_scaled, y_insomnia, test_size=0.3, random_state=42, stratify=y_insomnia)
+# Train-Test Split
+X_train_d, X_test_d, y_train_d, y_test_d = train_test_split(X_scaled, y_disorder, test_size=0.3, random_state=42, stratify=y_disorder)
+X_train_i, X_test_i, y_train_i, y_test_i = train_test_split(X_scaled, y_insomnia, test_size=0.3, random_state=42, stratify=y_insomnia)
 
-# Feature selection and training for Sleep Disorder
-model_disorder = LogisticRegression(solver='liblinear')
-rfe_disorder = RFE(model_disorder, n_features_to_select=9)
-rfe_disorder.fit(X_train_disorder, y_train_disorder)
-selected_feature_indices_disorder = rfe_disorder.support_
-X_train_selected_disorder = X_train_disorder[:, selected_feature_indices_disorder]
-log_reg_disorder = LogisticRegression(solver='liblinear')
-log_reg_disorder.fit(X_train_selected_disorder, y_train_disorder)
+# RFE for Disorder
+rfe_d = RFE(LogisticRegression(solver='liblinear'), n_features_to_select=9)
+rfe_d.fit(X_train_d, y_train_d)
+X_train_d_selected = X_train_d[:, rfe_d.support_]
+X_test_d_selected = X_test_d[:, rfe_d.support_]
 
-# Hyperparameter tuning for Sleep Disorder
+# Train final model for Disorder
+clf_d = LogisticRegression(solver='liblinear')
+clf_d.fit(X_train_d_selected, y_train_d)
+
+# Grid Search for Disorder
 param_grid = {'C': [0.001, 0.01, 0.1, 1, 10, 100]}
-grid_search_disorder = GridSearchCV(LogisticRegression(solver='liblinear'), param_grid, cv=5)
-grid_search_disorder.fit(X_train_selected_disorder, y_train_disorder)
-best_C_disorder = grid_search_disorder.best_params_['C']
+grid_d = GridSearchCV(LogisticRegression(solver='liblinear'), param_grid, cv=5)
+grid_d.fit(X_train_d_selected, y_train_d)
+best_C_d = grid_d.best_params_['C']
 
-# Prediction for Sleep Disorder
-y_pred_disorder = log_reg_disorder.predict(X_test_disorder[:, selected_feature_indices_disorder])
-accuracy_disorder = accuracy_score(y_test_disorder, y_pred_disorder)
-classification_rep_disorder = classification_report(y_test_disorder, y_pred_disorder, output_dict=True)
+# Disorder Predictions
+y_pred_d = clf_d.predict(X_test_d_selected)
+accuracy_d = round(accuracy_score(y_test_d, y_pred_d), 2)
+report_d = classification_report(y_test_d, y_pred_d, output_dict=True)
 
-# Feature selection and training for Insomnia
-model_insomnia = LogisticRegression(solver='liblinear')
-rfe_insomnia = RFE(model_insomnia, n_features_to_select=9)
-rfe_insomnia.fit(X_train_insomnia, y_train_insomnia)
-selected_feature_indices_insomnia = rfe_insomnia.support_
-X_train_selected_insomnia = X_train_insomnia[:, selected_feature_indices_insomnia]
-log_reg_insomnia = LogisticRegression(solver='liblinear')
-log_reg_insomnia.fit(X_train_selected_insomnia, y_train_insomnia)
+# RFE for Insomnia
+rfe_i = RFE(LogisticRegression(solver='liblinear'), n_features_to_select=9)
+rfe_i.fit(X_train_i, y_train_i)
+X_train_i_selected = X_train_i[:, rfe_i.support_]
+X_test_i_selected = X_test_i[:, rfe_i.support_]
 
-# Hyperparameter tuning for Insomnia
-grid_search_insomnia = GridSearchCV(LogisticRegression(solver='liblinear'), param_grid, cv=5)
-grid_search_insomnia.fit(X_train_selected_insomnia, y_train_insomnia)
-best_C_insomnia = grid_search_insomnia.best_params_['C']
+# Train final model for Insomnia
+clf_i = LogisticRegression(solver='liblinear')
+clf_i.fit(X_train_i_selected, y_train_i)
 
-# Prediction for Insomnia
-y_pred_insomnia = log_reg_insomnia.predict(X_test_insomnia[:, selected_feature_indices_insomnia])
-accuracy_insomnia = accuracy_score(y_test_insomnia, y_pred_insomnia)
-classification_rep_insomnia = classification_report(y_test_insomnia, y_pred_insomnia, output_dict=True)
+# Grid Search for Insomnia
+grid_i = GridSearchCV(LogisticRegression(solver='liblinear'), param_grid, cv=5)
+grid_i.fit(X_train_i_selected, y_train_i)
+best_C_i = grid_i.best_params_['C']
+
+# Insomnia Predictions
+y_pred_i = clf_i.predict(X_test_i_selected)
+accuracy_i = round(accuracy_score(y_test_i, y_pred_i), 2)
+report_i = classification_report(y_test_i, y_pred_i, output_dict=True)
 
 @app.route('/')
 def home():
-    # Render index.html template
     return render_template('index.html')
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if request.method=="POST":
-        age=request.form.get('age')
-        sleepDuration=request.form.get('sleepDuration')
-        qualityOfSleep=request.form.get('qualityOfSleep')
-        physicalActivityLevel=request.form.get('physicalActivityLevel')
-        stressLevel=request.form.get('stressLevel')
-        diastolic=request.form.get('diastolic')
-        systolic=request.form.get('systolic')
-        heartRate=request.form.get('heartRate')
-        dailySteps=request.form.get('dailySteps')
-        new_data = np.array([[age, sleepDuration,qualityOfSleep ,physicalActivityLevel ,stressLevel, diastolic, systolic, heartRate, dailySteps]])
-        new_data_scaled = scaler.transform(new_data)
-        prediction_disorder = log_reg_disorder.predict(new_data_scaled[:, selected_feature_indices_disorder])
-        if prediction_disorder == 0:
-            return redirect(url_for('result', result='No Sleep Disorder', accuracy=accuracy_disorder, precision=classification_rep_disorder['0']['precision'], recall=classification_rep_disorder['0']['recall']))
+    try:
+        # Get user input
+        input_values = [
+            float(request.form.get('age')),
+            float(request.form.get('sleepDuration')),
+            float(request.form.get('qualityOfSleep')),
+            float(request.form.get('physicalActivityLevel')),
+            float(request.form.get('stressLevel')),
+            float(request.form.get('diastolic')),
+            float(request.form.get('systolic')),
+            float(request.form.get('heartRate')),
+            float(request.form.get('dailySteps'))
+        ]
+
+        input_array = np.array([input_values])
+        input_scaled = scaler.transform(input_array)
+
+        # Predict Disorder
+        pred_disorder = clf_d.predict(input_scaled[:, rfe_d.support_])[0]
+        if pred_disorder == 0:
+            return redirect(url_for('result',
+                                    result='No Sleep Disorder',
+                                    accuracy=accuracy_d,
+                                    precision=round(report_d['0']['precision'], 2),
+                                    recall=round(report_d['0']['recall'], 2)))
         else:
-            prediction_insomnia = log_reg_insomnia.predict(new_data_scaled[:, selected_feature_indices_insomnia])
-            if prediction_insomnia == 0:
-                return redirect(url_for('result', result='Sleep Apnea', accuracy=accuracy_insomnia, precision=classification_rep_insomnia['0']['precision'], recall=classification_rep_insomnia['0']['recall']))
+            # Predict Insomnia if there is a disorder
+            pred_insomnia = clf_i.predict(input_scaled[:, rfe_i.support_])[0]
+            if pred_insomnia == 0:
+                return redirect(url_for('result',
+                                        result='Sleep Apnea',
+                                        accuracy=accuracy_i,
+                                        precision=round(report_i['0']['precision'], 2),
+                                        recall=round(report_i['0']['recall'], 2)))
             else:
-                return redirect(url_for('result', result='Insomnia', accuracy=accuracy_insomnia, precision=classification_rep_insomnia['1']['precision'], recall=classification_rep_insomnia['1']['recall']))
+                return redirect(url_for('result',
+                                        result='Insomnia',
+                                        accuracy=accuracy_i,
+                                        precision=round(report_i['1']['precision'], 2),
+                                        recall=round(report_i['1']['recall'], 2)))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/result')
 def result():
-    result = request.args.get('result')
-    accuracy = request.args.get('accuracy')
-    precision = request.args.get('precision')
-    recall = request.args.get('recall')
-    return render_template('result.html', result=result, accuracy=accuracy, precision=precision, recall=recall)
+    return render_template('result.html',
+                           result=request.args.get('result'),
+                           accuracy=request.args.get('accuracy'),
+                           precision=request.args.get('precision'),
+                           recall=request.args.get('recall'))
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000)
+    app.run(debug=True)
